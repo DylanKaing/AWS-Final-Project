@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Professor Dashboard</title>
+    <!-- USING CLOUDFLARES JAVASCRIPT QR SCRIPT TO GENERATE THE QR CODE FOR THE LINK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>Attendance System</h1>
+    
+    <h2>Generate QR Code</h2>
+    <input type="text" id="classId" placeholder="Class ID (e.g., CS1660)" value="CS1660">
+    <button onclick="generateQR()">Generate QR</button>
+    
+    <div id="qrcode"></div>
+    <div id="info"></div>
+    
+    <hr>
+    
+    <h2>View Report</h2>
+    <input type="text" id="sessionId" placeholder="Session ID">
+    <button onclick="viewReport()">View</button>
+    
+    <div id="report"></div>
+    
+    <script>
+        // Set out API gateway once it is setup within AWS
+        const API = '';
+        
+        function generateQR() {
+            const classId = document.getElementById('classId').value;
+            
+            fetch(API + '/session/generate', {
+                method: 'POST',
+                body: JSON.stringify({classId: classId})
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('qrcode').innerHTML = '';
+                new QRCode(document.getElementById('qrcode'), {
+                    text: data.qrUrl,
+                    width: 256,
+                    height: 256
+                });
+                
+                const exp = new Date(data.expiresAt * 1000);
+                document.getElementById('info').innerHTML = 
+                    '<p><b>Session ID:</b> ' + data.sessionId + '</p>' +
+                    '<p><b>Expires:</b> ' + exp.toLocaleString() + '</p>' +
+                    '<p><b>URL:</b> <a href="' + data.qrUrl + '">' + data.qrUrl + '</a></p>';
+            });
+        }
+        
+        function viewReport() {
+            const sid = document.getElementById('sessionId').value;
+            
+            fetch(API + '/attendance/report?sessionId=' + sid)
+            .then(r => r.json())
+            .then(data => {
+                let html = '<h3>Report</h3>';
+                html += '<p>Class: ' + data.classId + '</p>';
+                html += '<p>Date: ' + data.date + '</p>';
+                html += '<p>Total: ' + data.totalPresent + '</p>';
+                html += '<table border="1"><tr><th>Student ID</th><th>Time</th></tr>';
+                
+                data.attendance.forEach(r => {
+                    const time = new Date(r.timestamp * 1000).toLocaleTimeString();
+                    html += '<tr><td>' + r.studentId + '</td><td>' + time + '</td></tr>';
+                });
+                
+                html += '</table>';
+                document.getElementById('report').innerHTML = html;
+            });
+        }
+    </script>
+</body>
+</html>
