@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mark Attendance</title>
+</head>
+<body>
+    <h1>Mark Attendance</h1>
+    
+    <input type="text" id="studentId" placeholder="Student ID">
+    <button onclick="submit()">Submit</button>
+    
+    <div id="msg"></div>
+    
+    <script>
+        // Put the API gateway from AWS here to connect properly
+        const API = '';
+        
+        const params = new URLSearchParams(window.location.search);
+        const session = params.get('session');
+        const token = params.get('token');
+        
+        function submit() {
+            const sid = document.getElementById('studentId').value;
+            
+            if (!sid) {
+                alert('Enter your Student ID');
+                return;
+            }
+            
+            fetch(API + '/attendance/mark', {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionId: session,
+                    qrToken: token,
+                    studentId: sid
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.message) {
+                    document.getElementById('msg').innerHTML = 
+                        '<p style="color:green">✓ ' + data.message + '</p>';
+                } else {
+                    document.getElementById('msg').innerHTML = 
+                        '<p style="color:red">✗ ' + data.error + '</p>';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
