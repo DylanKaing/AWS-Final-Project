@@ -1,0 +1,63 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Configure AWS credentials
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    # Deploy Lambda functions
+    - name: Deploy GenerateSession Lambda
+      run: |
+        cd lambda
+        zip generate_session.zip generate_session.py
+        aws lambda update-function-code \
+          --function-name GenerateSession \
+          --zip-file fileb://generate_session.zip
+    
+    - name: Deploy MarkAttendance Lambda
+      run: |
+        cd lambda
+        zip mark_attendance.zip mark_attendance.py
+        aws lambda update-function-code \
+          --function-name MarkAttendance \
+          --zip-file fileb://mark_attendance.zip
+    
+    - name: Deploy GetAttendance Lambda
+      run: |
+        cd lambda
+        zip get_attendance.zip get_attendance.py
+        aws lambda update-function-code \
+          --function-name GetAttendance \
+          --zip-file fileb://get_attendance.zip
+    
+    # Deploy frontend to S3
+    - name: Deploy Frontend to S3
+      run: |
+        aws s3 sync frontend/ s3://attendance-yourname/ --delete
+    
+    # Invalidate CloudFront cache (optional)
+    - name: Invalidate CloudFront
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id YOUR-DISTRIBUTION-ID \
+          --paths "/*"
+    
+    - name: Deployment Complete
+      run: echo "✅ Deployment successful!"
