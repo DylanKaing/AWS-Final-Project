@@ -18,8 +18,8 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} # Add this
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # Add This
         aws-region: us-east-1
     
     # Deploy Lambda functions
@@ -50,13 +50,13 @@ jobs:
     # Deploy frontend to S3
     - name: Deploy Frontend to S3
       run: |
-        aws s3 sync frontend/ s3://attendance-yourname/ --delete
+        aws s3 sync frontend/ s3://attendance-yourname/ --delete # change this
     
     # Invalidate CloudFront cache (optional)
     - name: Invalidate CloudFront
       run: |
         aws cloudfront create-invalidation \
-          --distribution-id YOUR-DISTRIBUTION-ID \
+          --distribution-id YOUR-DISTRIBUTION-ID \ # This as well once CloudFront is working
           --paths "/*"
     
     - name: Deployment Complete

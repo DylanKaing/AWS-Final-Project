@@ -2,51 +2,101 @@ import json
 import boto3
 import uuid
 import time
+import os
 
-dynamodb = boto3.resource('dynamodb')
+# Initialize AWS clients
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+cloudwatch = boto3.client('cloudwatch', region_name='us-east-1')
+sns = boto3.client('sns', region_name='us-east-1')
 
 def lambda_handler(event, context):
+    """
+    Mark a student as present for a class session.
+    Triggered when student scans QR code and submits their ID.
+    """
+    
+    # CORS headers
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Content-Type': 'application/json'
+    }
+    
     try:
-        # Get data from request
-        body = json.loads(event['body'])
-        session_id = body['sessionId']
-        token = body['qrToken']
-        student_id = body['studentId']
+        # Parse request
+        body = json.loads(event.get('body', '{}'))
+        session_id = body.get('sessionId')
+        qr_token = body.get('qrToken')
+        student_id = body.get('studentId')
         
-        # Check if session exists
+        # Validate input
+        if not all([session_id, qr_token, student_id]):
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Missing required fields'})
+            }
+        
+        # Get DynamoDB tables
         sessions_table = dynamodb.Table('Sessions')
+        students_table = dynamodb.Table('Students')
+        attendance_table = dynamodb.Table('Attendance')
+        
+        # Step 1: Validate session exists
         session_response = sessions_table.get_item(Key={'sessionId': session_id})
         
         if 'Item' not in session_response:
-            return error_response(404, 'Session not found')
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({'error': 'Session not found'})
+            }
         
         session = session_response['Item']
         
-        # Check token
-        if session['qrToken'] != token:
-            return error_response(403, 'Invalid token')
+        # Step 2: Validate token matches
+        if session.get('qrToken') != qr_token:
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid QR code token'})
+            }
         
-        # Check if expired
-        if time.time() > session['expiresAt'] or not session['active']:
-            return error_response(410, 'Session expired')
+        # Step 3: Check if session is still active and not expired
+        current_time = int(time.time())
+        if current_time > session.get('expiresAt', 0) or not session.get('active', False):
+            return {
+                'statusCode': 410,
+                'headers': headers,
+                'body': json.dumps({'error': 'Session has expired'})
+            }
         
-        # Check if student exists
-        students_table = dynamodb.Table('Students')
+        # Step 4: Validate student exists in database
         student_response = students_table.get_item(Key={'studentId': student_id})
         
         if 'Item' not in student_response:
-            return error_response(404, 'Student not found in database')
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({'error': 'Student not found in database'})
+            }
         
         student = student_response['Item']
         
-        # Check if enrolled in class
-        class_id = session['classId']
-        if class_id not in student['enrolledClasses']:
-            return error_response(403, 'Student not enrolled in this class')
+        # Step 5: Check if student is enrolled in this class
+        class_id = session.get('classId')
+        enrolled_classes = student.get('enrolledClasses', [])
         
-        # Check if already marked present
-        attendance_table = dynamodb.Table('Attendance')
-        existing = attendance_table.query(
+        if class_id not in enrolled_classes:
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': f'Student not enrolled in class {class_id}'})
+            }
+        
+        # Step 6: Check if student already marked present for this session
+        existing_attendance = attendance_table.query(
             IndexName='sessionId-index',
             KeyConditionExpression='sessionId = :sid',
             FilterExpression='studentId = :stid',
@@ -56,42 +106,85 @@ def lambda_handler(event, context):
             }
         )
         
-        if existing['Count'] > 0:
-            return error_response(409, 'Already marked present')
+        if existing_attendance.get('Count', 0) > 0:
+            return {
+                'statusCode': 409,
+                'headers': headers,
+                'body': json.dumps({'message': 'Attendance already marked for this session'})
+            }
         
-        # Mark attendance
+        # Step 7: Mark attendance
         attendance_id = str(uuid.uuid4())
         attendance_table.put_item(Item={
             'attendanceId': attendance_id,
             'sessionId': session_id,
             'studentId': student_id,
             'classId': class_id,
-            'timestamp': int(time.time()),
+            'timestamp': current_time,
             'status': 'present'
         })
         
-        # Success
+        # Step 8: Log CloudWatch metric
+        try:
+            cloudwatch.put_metric_data(
+                Namespace='AttendanceSystem',
+                MetricData=[{
+                    'MetricName': 'AttendanceMarked',
+                    'Value': 1,
+                    'Unit': 'Count',
+                    'Timestamp': time.time(),
+                    'Dimensions': [
+                        {'Name': 'ClassID', 'Value': class_id},
+                        {'Name': 'SessionID', 'Value': session_id}
+                    ]
+                }]
+            )
+        except Exception as metric_error:
+            print(f"CloudWatch metric error: {metric_error}")
+        
+        # Step 9: Send SNS notification (if topic ARN is configured)
+        try:
+            sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
+            if sns_topic_arn:
+                sns.publish(
+                    TopicArn=sns_topic_arn,
+                    Subject=f'Attendance Marked - {class_id}',
+                    Message=f'Student {student_id} marked present for {class_id} on {session.get("date")}'
+                )
+        except Exception as sns_error:
+            print(f"SNS notification error: {sns_error}")
+            # Don't fail the request if SNS fails
+        
+        # Return success
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
+            'headers': headers,
             'body': json.dumps({
                 'message': 'Attendance marked successfully',
-                'studentId': student_id
+                'studentId': student_id,
+                'classId': class_id,
+                'timestamp': current_time
             })
         }
         
     except Exception as e:
-        return error_response(500, str(e))
-
-def error_response(status, message):
-    return {
-        'statusCode': status,
-        'headers': {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-        },
-        'body': json.dumps({'error': message})
-    }
+        print(f"Error: {str(e)}")
+        
+        # Log error metric
+        try:
+            cloudwatch.put_metric_data(
+                Namespace='AttendanceSystem',
+                MetricData=[{
+                    'MetricName': 'Errors',
+                    'Value': 1,
+                    'Unit': 'Count'
+                }]
+            )
+        except:
+            pass
+        
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': str(e)})
+        }
