@@ -32,6 +32,7 @@
             
             fetch(API + '/session/generate', {
                 method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({classId: classId})
             })
             .then(r => r.json())
@@ -54,7 +55,9 @@
         function viewReport() {
             const sid = document.getElementById('sessionId').value;
             
-            fetch(API + '/attendance/report?sessionId=' + sid)
+            fetch(API + '/attendance/report?sessionId=' + sid, {
+                headers: {'Content-Type': 'application/json'}
+            })
             .then(r => r.json())
             .then(data => {
                 let html = '<h3>Report</h3>';

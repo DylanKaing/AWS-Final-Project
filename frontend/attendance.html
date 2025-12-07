@@ -29,6 +29,7 @@
             
             fetch(API + '/attendance/mark', {
                 method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     sessionId: session,
                     qrToken: token,
