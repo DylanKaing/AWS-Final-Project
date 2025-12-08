@@ -73,7 +73,7 @@ def lambda_handler(event, context):
             # Don't fail the request if metrics fail
         
         # Get base URL from environment variable or use default
-        base_url = os.environ.get('BASE_URL', 'https://yourapp.com')
+        base_url = os.environ.get('BASE_URL', 'https://d34ooc6u440pf8.cloudfront.net')
         qr_url = f"{base_url}/attend.html?session={session_id}&token={qr_token}"
         
         # Return success response
