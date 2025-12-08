@@ -3,26 +3,23 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-    # Checkout code
     - name: Checkout code
       uses: actions/checkout@v3
     
-    # Configure AWS credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} # Add this
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # Add This
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
     
-    # Deploy Lambda functions
     - name: Deploy GenerateSession Lambda
       run: |
         cd lambda
@@ -47,17 +44,16 @@ jobs:
           --function-name GetAttendance \
           --zip-file fileb://get_attendance.zip
     
-    # Deploy frontend to S3
     - name: Deploy Frontend to S3
       run: |
-        aws s3 sync frontend/ s3://attendance-yourname/ --delete # change this
+        aws s3 sync frontend/ s3://mhw28-final-project/ --delete
     
-    # Invalidate CloudFront cache (optional)
-    - name: Invalidate CloudFront
+    - name: Invalidate CloudFront Cache
       run: |
+        DIST_ID=$(aws cloudfront list-distributions --query 'DistributionList.Items[0].Id' --output text)
         aws cloudfront create-invalidation \
-          --distribution-id YOUR-DISTRIBUTION-ID \ # This as well once CloudFront is working
+          --distribution-id $DIST_ID \
           --paths "/*"
     
     - name: Deployment Complete
-      run: echo "✅ Deployment successful!"
+      run: echo "Deployment successful!"
