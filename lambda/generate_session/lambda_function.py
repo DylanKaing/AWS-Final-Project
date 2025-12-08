@@ -74,7 +74,7 @@ def lambda_handler(event, context):
         
         # Get base URL from environment variable or use default
         base_url = os.environ.get('BASE_URL', 'https://d34ooc6u440pf8.cloudfront.net')
-        qr_url = f"{base_url}/attend.html?session={session_id}&token={qr_token}"
+        qr_url = f"{base_url}/attendance.html?session={session_id}&token={qr_token}"
         
         # Return success response
         return {
