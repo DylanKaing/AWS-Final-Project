@@ -23,7 +23,8 @@ jobs:
     - name: Deploy GenerateSession Lambda
       run: |
         cd lambda
-        zip generate_session.zip generate_session/lambda_function.py
+        cd generate_session
+        zip generate_session.zip lambda_function.py
         aws lambda update-function-code \
           --function-name generate_session \
           --zip-file fileb://generate_session.zip
@@ -31,7 +32,8 @@ jobs:
     - name: Deploy MarkAttendance Lambda
       run: |
         cd lambda
-        zip mark_attendance.zip mark_attendance/lambda_function.py
+        cd mark_attendance
+        zip mark_attendance.zip lambda_function.py
         aws lambda update-function-code \
           --function-name mark_attendance \
           --zip-file fileb://mark_attendance.zip
@@ -39,7 +41,8 @@ jobs:
     - name: Deploy GetAttendance Lambda
       run: |
         cd lambda
-        zip get_attendance.zip get_attendance/lambda_function.py
+        cd get_attendance
+        zip get_attendance.zip lambda_function.py
         aws lambda update-function-code \
           --function-name get_attendance \
           --zip-file fileb://get_attendance.zip
