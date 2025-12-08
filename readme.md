@@ -4,6 +4,10 @@ This project is a simple QR-based attendance system that allows teachers to gene
 
 ---
 
+# Github Repository Link
+Link: https://github.com/DylanKaing/AWS-Final-Project
+---
+
 ## Youtube Demo Link
 Link: https://youtu.be/eQuR8NHPka8
 
