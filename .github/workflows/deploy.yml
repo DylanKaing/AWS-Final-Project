@@ -25,7 +25,7 @@ jobs:
         cd lambda
         zip generate_session.zip generate_session.py
         aws lambda update-function-code \
-          --function-name GenerateSession \
+          --function-name generate_session \
           --zip-file fileb://generate_session.zip
     
     - name: Deploy MarkAttendance Lambda
@@ -33,7 +33,7 @@ jobs:
         cd lambda
         zip mark_attendance.zip mark_attendance.py
         aws lambda update-function-code \
-          --function-name MarkAttendance \
+          --function-name mark_attendance \
           --zip-file fileb://mark_attendance.zip
     
     - name: Deploy GetAttendance Lambda
@@ -41,7 +41,7 @@ jobs:
         cd lambda
         zip get_attendance.zip get_attendance.py
         aws lambda update-function-code \
-          --function-name GetAttendance \
+          --function-name get_attendance \
           --zip-file fileb://get_attendance.zip
     
     - name: Deploy Frontend to S3
