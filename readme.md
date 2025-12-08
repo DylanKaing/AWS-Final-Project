@@ -4,6 +4,11 @@ This project is a simple QR-based attendance system that allows teachers to gene
 
 ---
 
+## Youtube Demo Link
+Link: https://youtu.be/eQuR8NHPka8
+
+---
+
 ## Service Justifications
 
 ### **CloudFront**
